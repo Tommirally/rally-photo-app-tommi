@@ -1,8 +1,11 @@
 "use server";
 
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { parseEntryList, slugify } from "@/lib/admin/entry-csv";
+import { generatePassword, isValidEmail } from "@/lib/admin/password";
 import { requireAdmin } from "@/lib/server/admin";
 
 export type FormState = { error?: string; ok?: string } | null;
@@ -124,4 +127,121 @@ export async function deleteEntry(eventId: string, entryId: string): Promise<For
   if (error) return { error: error.message };
   revalidatePath(`/admin/events/${eventId}`);
   return { ok: "Car removed." };
+}
+
+// ---------------------------------------------------------------------
+// Photographers
+// ---------------------------------------------------------------------
+
+export type AddPhotographerState = (FormState & { password?: string; email?: string }) | null;
+
+async function siteOrigin(): Promise<string> {
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host") ?? "";
+  const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${proto}://${host}`;
+}
+
+/** Find a login by email (the admin API has no email filter; fine at pilot scale). */
+async function findUserId(admin: SupabaseClient, email: string): Promise<string | null> {
+  for (let page = 1; page <= 50; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+    if (error) throw new Error(error.message);
+    const hit = data.users.find((u) => u.email?.toLowerCase() === email);
+    if (hit) return hit.id;
+    if (data.users.length < 200) return null;
+  }
+  return null;
+}
+
+async function ensureProfile(admin: SupabaseClient, userId: string, name: string, credit: string): Promise<string> {
+  const { data: existing } = await admin.from("photographers").select("id").eq("user_id", userId).maybeSingle();
+  if (existing) return existing.id as string;
+  const base = slugify(name);
+  const { data: taken } = await admin.from("photographers").select("slug").like("slug", `${base}%`);
+  const used = new Set((taken ?? []).map((r: { slug: string }) => r.slug));
+  let slug = base;
+  for (let n = 2; used.has(slug); n++) slug = `${base}-${n}`;
+  const { data, error } = await admin
+    .from("photographers")
+    .insert({ user_id: userId, slug, display_name: name, credit })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return data.id as string;
+}
+
+/**
+ * Add a photographer to an event, creating their login if needed.
+ *  - method "password": creates the login now and returns a temporary password
+ *    to send them (works without any email setup).
+ *  - method "invite": Supabase emails them a link to set their own password
+ *    (needs an email service connected to Supabase for outside addresses).
+ */
+export async function addPhotographer(eventId: string, _prev: AddPhotographerState, form: FormData): Promise<AddPhotographerState> {
+  const admin = await requireAdmin();
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const name = String(form.get("name") ?? "").trim().slice(0, 120);
+  const credit = String(form.get("credit") ?? "").trim().slice(0, 160) || `© ${name}`;
+  const method = form.get("method") === "invite" ? "invite" : "password";
+  if (!isValidEmail(email)) return { error: "Enter a valid email address." };
+  if (!name) return { error: "Enter the name to show on their photos." };
+
+  try {
+    let userId = await findUserId(admin, email);
+    let password: string | undefined;
+    let note: string;
+    if (userId) {
+      note = `${email} already has a login – added to this event.`;
+    } else if (method === "invite") {
+      const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${await siteOrigin()}/auth/welcome` });
+      if (error) {
+        return {
+          error: `The invite email couldn't be sent (${error.message}). Use “Create login now” instead, or connect an email service to Supabase (see README).`,
+        };
+      }
+      userId = data.user.id;
+      note = `Invite email sent to ${email}. They'll choose their own password.`;
+    } else {
+      password = generatePassword();
+      const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+      if (error) return { error: `Couldn't create the login: ${error.message}` };
+      userId = data.user.id;
+      note = `Login created for ${email}. Send them the password below – it's only shown once.`;
+    }
+
+    const photographerId = await ensureProfile(admin, userId, name, credit);
+    const { error } = await admin
+      .from("event_photographers")
+      .upsert({ event_id: eventId, photographer_id: photographerId, status: "approved" }, { onConflict: "event_id,photographer_id" });
+    if (error) return { error: error.message };
+    revalidatePath(`/admin/events/${eventId}`);
+    return { ok: note, password, email };
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : "Something went wrong" };
+  }
+}
+
+/** Add someone who already works with us to another event. */
+export async function addExistingPhotographer(eventId: string, photographerId: string): Promise<FormState> {
+  const admin = await requireAdmin();
+  const { error } = await admin
+    .from("event_photographers")
+    .upsert({ event_id: eventId, photographer_id: photographerId, status: "approved" }, { onConflict: "event_id,photographer_id" });
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/events/${eventId}`);
+  return { ok: "Added." };
+}
+
+export async function setPhotographerAccess(eventId: string, photographerId: string, status: "approved" | "suspended"): Promise<FormState> {
+  const admin = await requireAdmin();
+  if (status !== "approved" && status !== "suspended") return { error: "Unknown status" };
+  const { error } = await admin
+    .from("event_photographers")
+    .update({ status })
+    .eq("event_id", eventId)
+    .eq("photographer_id", photographerId);
+  if (error) return { error: error.message };
+  revalidatePath(`/admin/events/${eventId}`);
+  return { ok: status === "approved" ? "Access restored." : "Access paused." };
 }

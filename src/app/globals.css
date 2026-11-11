@@ -312,3 +312,6 @@ a { color: inherit; }
 .preview ul { margin: 4px 0 0; padding-left: 20px; }
 details summary { cursor: pointer; }
 a.primary-button, a.secondary-button { text-decoration: none; }
+.radio-group { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.radio-group label { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; }
+.password-box { white-space: pre-wrap; font-size: 0.95rem; margin: 0 0 8px; }

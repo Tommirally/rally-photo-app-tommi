@@ -16,7 +16,7 @@ photographer workflow.
 
 ### Plan progress
 - [x] 1. Admin: events and CSV entry lists (plus auto-publish on upload): built and tested locally, needs the live check below
-- [ ] 2. Admin: photographer invites and approvals
+- [x] 2. Admin: photographer invites and approvals: built, needs the live check below. "Create login now" works without email. Email invites and "Forgot password" need custom SMTP plus a Redirect URL (README)
 - [ ] 3. Upload: drag and drop, resize in the browser, overall progress, default price
 - [ ] 4. Tagging mode: one at a time, same as last, burst select
 
@@ -54,5 +54,12 @@ photographer workflow.
 - [ ] **Make gallery public** and **Copy link**: the link opens the public gallery.
 - [ ] A newly uploaded photo appears in the public gallery straight away, before tagging.
 
+## Live check for step 2
+- [ ] Admin event page → add a new photographer with **Create login now** → copy the message, then sign in as them in a private window: the event appears under My events.
+- [ ] **Pause** them: their workspace says not approved. **Approve** again: it works.
+- [ ] A photographer from another event appears in "Add someone you've worked with" and can be added.
+- [ ] (After SMTP is set up) **Email invite** arrives; the link opens "Set your password"; after saving, My events opens.
+- [ ] (After SMTP is set up) "Forgot password?" on the sign-in page sends a working reset link.
+
 ## Exact next step
-Continue the plan above from the first unticked item.
+Merge PR #3 and add `ADMIN_EMAILS` in Vercel, then do the live checks for steps 1–2. After that, build step 3 (upload improvements).

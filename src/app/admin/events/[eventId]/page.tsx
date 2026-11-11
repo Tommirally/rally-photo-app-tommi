@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { adminPageGuard } from "@/lib/server/admin-page";
 import { fetchAll } from "@/lib/server/fetch-all";
-import { DeleteEntryButton, EntryImport, EventForm, PublicSwitch } from "../../components";
+import { AccessSwitch, AddPhotographerForm, DeleteEntryButton, EntryImport, EventForm, PublicSwitch } from "../../components";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin – event" };
@@ -55,6 +55,10 @@ export default async function AdminEventPage({ params }: { params: Promise<{ eve
     ? await admin.from("photographers").select("id, display_name").in("id", photographerIds)
     : { data: [] as { id: string; display_name: string }[] };
   const nameOf = new Map((photographers ?? []).map((p: { id: string; display_name: string }) => [p.id, p.display_name]));
+  const { data: allPhotographers } = await admin.from("photographers").select("id, display_name").order("display_name");
+  const others = ((allPhotographers ?? []) as { id: string; display_name: string }[])
+    .filter((p) => !members.some((m) => m.photographer_id === p.id))
+    .map((p) => ({ id: p.id, name: p.display_name }));
 
   const taggedPhotoIds = new Set(tags.map((t) => t.photo_id));
   const tagsPerEntry = new Map<string, number>();
@@ -84,7 +88,7 @@ export default async function AdminEventPage({ params }: { params: Promise<{ eve
       </section>
 
       <section className="panel">
-        <h2>Photos</h2>
+        <h2>Photographers and photos</h2>
         <div className="stat-row" data-testid="photo-stats">
           <span>
             <strong>{total.uploaded}</strong> uploaded
@@ -109,6 +113,7 @@ export default async function AdminEventPage({ params }: { params: Promise<{ eve
                   <th>Uploaded</th>
                   <th>Live</th>
                   <th>Tagged</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -122,6 +127,11 @@ export default async function AdminEventPage({ params }: { params: Promise<{ eve
                       <td>{s.uploaded}</td>
                       <td>{s.live}</td>
                       <td>{s.tagged}</td>
+                      <td>
+                        {status !== "—" && (
+                          <AccessSwitch eventId={event.id} photographerId={id} status={status} name={nameOf.get(id) ?? "this photographer"} />
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -131,6 +141,7 @@ export default async function AdminEventPage({ params }: { params: Promise<{ eve
         ) : (
           <p className="muted">No photographers at this event yet.</p>
         )}
+        <AddPhotographerForm eventId={event.id} others={others} />
       </section>
 
       <section className="panel">

@@ -45,6 +45,9 @@ export function LoginForm({ next = "/photographer" }: { next?: string }) {
       <button type="submit" className="primary-button" disabled={busy}>
         {busy ? "Signing in…" : "Sign in"}
       </button>
+      <a href="/auth/forgot" className="link-button small">
+        Forgot password?
+      </a>
     </form>
   );
 }

@@ -104,9 +104,29 @@ doesn't match exactly, look for the closest one.
    the preview, then click **Save N cars**. A template is available to download.
 5. Click **Make gallery public** and **Copy link** to share it.
 
-Photographer invites and approvals are being added to `/admin` (see
-BUILD_STATUS.md). Until then, photographers are added with
-`supabase/pilot-setup.sql`, steps 3–4.
+6. Under **Photographers and photos**, add each photographer:
+   - **Someone you've worked with before:** pick them from the list and click **Add**.
+   - **Someone new:** enter their email and the name shown on their photos, then choose:
+     - **Create login now** (works straight away): click **Add photographer**,
+       then **Copy message to send**. Text or WhatsApp them the message; the
+       password is shown only once.
+     - **Email them an invite:** they set their own password. This needs the
+       two one-time Supabase settings below.
+   - **Pause** or **Approve** a photographer at any time. Pausing stops
+     uploads, tagging and publishing at that event; their live photos stay live.
+
+`supabase/pilot-setup.sql` is no longer needed for routine work.
+
+#### One-time settings for email invites and "Forgot password"
+Supabase's built-in email only reaches members of your Supabase team, so
+outside photographers need an email service:
+1. Create a free account with an email provider that offers SMTP (for
+   example Resend) and verify your sending domain there.
+2. Supabase → **Authentication** → **Emails** → **SMTP Settings** → turn on
+   **Enable Custom SMTP**, and enter the host, port, username, password and
+   sender address from the provider. Click **Save**.
+3. Supabase → **Authentication** → **URL Configuration** → **Redirect URLs** →
+   **Add URL** → `https://rally-photo-app-tommi.vercel.app/**` → **Save**.
 
 ## Develop
 

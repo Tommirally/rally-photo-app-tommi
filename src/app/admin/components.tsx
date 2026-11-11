@@ -3,7 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useActionState, useMemo, useState, useTransition } from "react";
 import { ENTRY_CSV_TEMPLATE, parseEntryList } from "@/lib/admin/entry-csv";
-import { createEvent, deleteEntry, importEntries, setEventPublic, updateEvent, type FormState } from "./actions";
+import {
+  addExistingPhotographer,
+  addPhotographer,
+  createEvent,
+  deleteEntry,
+  importEntries,
+  setEventPublic,
+  setPhotographerAccess,
+  updateEvent,
+  type FormState,
+} from "./actions";
 
 export interface EventFormValues {
   id?: string;
@@ -318,6 +328,123 @@ export function DeleteEntryButton({ eventId, entryId, number, taggedPhotos }: { 
       }}
     >
       Remove
+    </button>
+  );
+}
+
+export function AddPhotographerForm({ eventId, others }: { eventId: string; others: { id: string; name: string }[] }) {
+  const router = useRouter();
+  const [state, formAction, pending] = useActionState(addPhotographer.bind(null, eventId), null);
+  const [copied, setCopied] = useState(false);
+  const [existing, setExisting] = useState("");
+  const [existingState, setExistingState] = useState<FormState>(null);
+  const [adding, start] = useTransition();
+  const message =
+    state?.password && state.email
+      ? `Your Rally Photos login: ${typeof window === "undefined" ? "" : window.location.origin}/login\nEmail: ${state.email}\nPassword: ${state.password}`
+      : null;
+
+  return (
+    <div className="stack-form">
+      {others.length > 0 && (
+        <div className="row">
+          <select className="text-input" value={existing} onChange={(e) => setExisting(e.target.value)} aria-label="Photographer you've worked with">
+            <option value="">Add someone you’ve worked with…</option>
+            {others.map((o) => (
+              <option key={o.id} value={o.id}>
+                {o.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="secondary-button"
+            disabled={!existing || adding}
+            onClick={() =>
+              start(async () => {
+                setExistingState(await addExistingPhotographer(eventId, existing));
+                setExisting("");
+                router.refresh();
+              })
+            }
+          >
+            Add
+          </button>
+        </div>
+      )}
+      <Message state={existingState} />
+
+      <details open={others.length === 0}>
+        <summary className="small">
+          <strong>Add a new photographer</strong>
+        </summary>
+        <form action={formAction} className="stack-form">
+          <label>
+            Email
+            <input name="email" type="email" required className="text-input" autoComplete="off" />
+          </label>
+          <label>
+            Name shown on their photos
+            <input name="name" required maxLength={120} className="text-input" placeholder="Fern Hollow Photography" />
+          </label>
+          <label>
+            Credit line <span className="muted small">(optional, defaults to “© name”)</span>
+            <input name="credit" maxLength={160} className="text-input" />
+          </label>
+          <fieldset className="radio-group">
+            <legend className="small">How should they get their password?</legend>
+            <label>
+              <input type="radio" name="method" value="password" defaultChecked /> Create login now – I’ll send them the password
+            </label>
+            <label>
+              <input type="radio" name="method" value="invite" /> Email them an invite to set their own password{" "}
+              <span className="muted small">(needs an email service in Supabase – see README)</span>
+            </label>
+          </fieldset>
+          <button type="submit" className="primary-button" disabled={pending}>
+            {pending ? "Adding…" : "Add photographer"}
+          </button>
+        </form>
+      </details>
+      <Message state={state} />
+      {message && (
+        <div className="notice" data-testid="new-password">
+          <pre className="password-box">{message}</pre>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={async () => {
+              await navigator.clipboard.writeText(message);
+              setCopied(true);
+            }}
+          >
+            {copied ? "Copied ✓" : "Copy message to send"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function AccessSwitch({ eventId, photographerId, status, name }: { eventId: string; photographerId: string; status: string; name: string }) {
+  const router = useRouter();
+  const [pending, start] = useTransition();
+  const approved = status === "approved";
+  return (
+    <button
+      type="button"
+      className="link-button"
+      disabled={pending}
+      onClick={() => {
+        if (approved && !confirm(`Pause ${name}? They won't be able to upload, tag or publish at this event. Their live photos stay live.`)) return;
+        start(async () => {
+          const r = await setPhotographerAccess(eventId, photographerId, approved ? "suspended" : "approved");
+          if (r?.error) alert(r.error);
+          router.refresh();
+        });
+      }}
+    >
+      {approved ? "Pause" : "Approve"}
     </button>
   );
 }
