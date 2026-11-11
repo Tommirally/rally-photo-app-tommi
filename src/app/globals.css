@@ -291,3 +291,27 @@ a { color: inherit; }
 .bulk-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .bulk-row .text-input { flex: 1 1 140px; }
 .bulk-row .price-input { flex: 0 1 90px; }
+
+/* ---------- Admin ---------- */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 480px) { .two-col { grid-template-columns: 1fr; } }
+.slug-field { display: flex; align-items: center; gap: 4px; font-weight: 400; }
+.slug-field .text-input { flex: 1; }
+.share-url { padding: 8px 10px; background: var(--bg); border-radius: 8px; overflow-wrap: anywhere; font-size: 0.9rem; }
+.stat-row { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 4px 0 12px; }
+.stat-row strong { font-size: 1.3rem; }
+.table-wrap { overflow-x: auto; margin-top: 10px; }
+.entry-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.entry-table th, .entry-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.entry-table th { font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.entry-table .num { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.row-new td { background: rgba(21, 128, 61, 0.08); }
+.row-changed td { background: rgba(245, 158, 11, 0.12); }
+.preview { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; display: grid; gap: 8px; }
+.preview h3 { margin: 0; font-size: 1rem; }
+.preview ul { margin: 4px 0 0; padding-left: 20px; }
+details summary { cursor: pointer; }
+a.primary-button, a.secondary-button { text-decoration: none; }
+.radio-group { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.radio-group label { display: flex; gap: 8px; align-items: flex-start; font-weight: 400; }
+.password-box { white-space: pre-wrap; font-size: 0.95rem; margin: 0 0 8px; }

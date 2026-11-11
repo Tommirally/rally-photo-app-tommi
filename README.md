@@ -16,6 +16,7 @@ photographer. It starts with UK club rallying.
 | `/login` | Photographers | Email and password sign-in |
 | `/photographer` | Photographers | My events |
 | `/photographer/events/<id>` | Approved photographers | Upload, bulk-tag, publish and price photos |
+| `/admin` | The owner (emails in `ADMIN_EMAILS`) | Create events, upload entry lists (CSV), make galleries public, see progress |
 
 **How uploads work.** The browser asks our server for a signed upload link and
 sends the JPEG **straight to Cloudflare R2**. The server then opens the file in
@@ -92,18 +93,40 @@ doesn't match exactly, look for the closest one.
 3. Go to **Deployments**, click **⋯** on the latest one → **Redeploy**. The
    `NEXT_PUBLIC_` values are built into the app, so a redeploy is required.
 
-### 4. Set up an event (manual for the pilot)
+### 4. Run events from the admin area (no SQL)
 
-1. Supabase → **Authentication** → **Users** → **Add user** → **Create new user**.
-   Enter the photographer's email and a password, tick **Auto Confirm User**,
-   and click **Create user**. Send them the password privately.
-2. Supabase → **SQL Editor** → **New query**. Paste `supabase/pilot-setup.sql`,
-   change every line marked `EDIT`, and click **Run**. The check at the bottom
-   shows the event, its entry count and its approved photographers.
-3. The photographer signs in at `/login`, uploads, tags and publishes.
-4. When you're ready for the public, run
-   `update public.events set is_public = true where slug = 'your-slug';`
-   and share `/events/your-slug`.
+1. In Vercel, add the setting `ADMIN_EMAILS` with your sign-in email, then
+   redeploy. To allow more than one person, separate emails with commas.
+2. Go to `/admin` and sign in.
+3. Click **+ New event**: fill in the name, date, venue and organiser. It starts
+   as a draft.
+4. On the event page, under **Entry list**, choose the organiser's `.csv`. Check
+   the preview, then click **Save N cars**. A template is available to download.
+5. Click **Make gallery public** and **Copy link** to share it.
+
+6. Under **Photographers and photos**, add each photographer:
+   - **Someone you've worked with before:** pick them from the list and click **Add**.
+   - **Someone new:** enter their email and the name shown on their photos, then choose:
+     - **Create login now** (works straight away): click **Add photographer**,
+       then **Copy message to send**. Text or WhatsApp them the message; the
+       password is shown only once.
+     - **Email them an invite:** they set their own password. This needs the
+       two one-time Supabase settings below.
+   - **Pause** or **Approve** a photographer at any time. Pausing stops
+     uploads, tagging and publishing at that event; their live photos stay live.
+
+`supabase/pilot-setup.sql` is no longer needed for routine work.
+
+#### One-time settings for email invites and "Forgot password"
+Supabase's built-in email only reaches members of your Supabase team, so
+outside photographers need an email service:
+1. Create a free account with an email provider that offers SMTP (for
+   example Resend) and verify your sending domain there.
+2. Supabase → **Authentication** → **Emails** → **SMTP Settings** → turn on
+   **Enable Custom SMTP**, and enter the host, port, username, password and
+   sender address from the provider. Click **Save**.
+3. Supabase → **Authentication** → **URL Configuration** → **Redirect URLs** →
+   **Add URL** → `https://rally-photo-app-tommi.vercel.app/**` → **Save**.
 
 ## Develop
 

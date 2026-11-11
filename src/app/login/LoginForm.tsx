@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
-export function LoginForm() {
+export function LoginForm({ next = "/photographer" }: { next?: string }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -23,7 +23,7 @@ export function LoginForm() {
       setError("That email and password didn’t match. Check them, or ask the organiser to reset your password.");
       return;
     }
-    router.replace("/photographer");
+    router.replace(next);
     router.refresh();
   }
 
@@ -45,6 +45,9 @@ export function LoginForm() {
       <button type="submit" className="primary-button" disabled={busy}>
         {busy ? "Signing in…" : "Sign in"}
       </button>
+      <a href="/auth/forgot" className="link-button small">
+        Forgot password?
+      </a>
     </form>
   );
 }
