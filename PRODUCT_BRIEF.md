@@ -95,6 +95,33 @@ added in the sales milestone.
     or shared, visits per event and their referrers, and share-button taps.
 - No checkout yet. "Buy" stays disabled.
 
+### 1b. Admin area and easier photographer workflow – _in progress (see BUILD_STATUS.md)_
+Decisions made on 11 Nov 2026, during live pilot setup:
+- **The admin area is for the owner only.** The owner runs events at first, and
+  organisers don't log in. Build it so organisers *could* manage their own event later.
+- **No SQL for routine admin.** Events, entry lists, photographers and approvals
+  are all managed from `/admin` forms, with checks and a preview before saving.
+- **Entry lists come from a CSV upload,** with a preview table before saving.
+  It warns about duplicates, blanks, and look-alike numbers (32 / 032 / 320).
+  It also warns that Excel can strip leading zeros.
+- **Photographers are invited by email:** they set their own password.
+  Approve or pause per event with a switch.
+- **Photos go live as soon as they are uploaded and verified,** even if untagged.
+  Photographers often won't have time to tag everything. Untagged photos appear
+  in the full gallery but not in car-number search. Photographers can still
+  unpublish.
+- Upload: drag and drop, automatic resize to web size in the browser, one
+  overall progress bar, and a default price per photographer per event.
+- Tagging mode: one photo at a time. Type the number and press Enter. The app
+  shows the driver and car to confirm, with "same as last" for bursts, burst
+  selection by capture time, and unknown numbers flagged as you type.
+
+Build order:
+1. Admin: events and CSV entry lists
+2. Admin: photographer invites and approvals
+3. Upload improvements
+4. Tagging mode
+
 ### 2. After the pilot (scheduled, not started). Next features, in order:
 1. **Paid downloads.** One photographer per checkout. Release the private
    high-resolution original only after verified payment (webhook). Take the
