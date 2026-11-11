@@ -115,6 +115,10 @@ export function Uploader({ eventId, onFinished }: { eventId: string; onFinished:
   }
 
   const failed = items.filter((it) => it.status === "failed");
+  // fetch() throws (no HTTP status) when the browser blocks the request, which
+  // for R2 almost always means the bucket's CORS policy doesn't list this site.
+  const blocked = !running && failed.some((it) => it.reason?.startsWith("Network error while uploading"));
+  const origin = typeof window === "undefined" ? "" : window.location.origin;
   const done = items.filter((it) => it.status === "ready").length;
   const total = items.filter((it) => it.status !== "skipped").length;
 
@@ -145,6 +149,14 @@ export function Uploader({ eventId, onFinished }: { eventId: string; onFinished:
           </button>
         )}
       </div>
+      {blocked && (
+        <div className="notice" role="alert" data-testid="cors-help">
+          <strong>Your browser couldn’t reach photo storage.</strong> If this happens for every photo, the Cloudflare R2
+          bucket’s CORS policy doesn’t include this site’s address. In Cloudflare: R2 → your bucket → Settings → CORS
+          Policy, make sure <code>AllowedOrigins</code> contains exactly <code>{origin}</code> (no slash at the end), save,
+          wait a minute, then press <em>Retry failed</em>.
+        </div>
+      )}
       {error && (
         <p className="form-error" role="alert">
           {error}
