@@ -38,35 +38,33 @@ A marketplace for event photos, starting with **UK club rallying**.
 | **Photographer** | Independent account. Works across many events. |
 | **Event ↔ Photographer** | Many-to-many join (`event_photographers`). An event has many photographers. |
 | **Entry** | One numbered competitor at one event. `number` is **text**, scoped to its event: unique on `(event_id, number)`. `32`, `032` and `320` are **different** entries. Never cast to an integer and never strip leading zeros. |
-| **Photo** | Belongs to one event and one photographer. Has the photographer's price in pence (GBP), a credit and a location (stage). |
-| **Photo tag** | Many-to-many `photo_tags (photo_id, entry_id)`. One photo can show several entries. |
+| **Upload batch** | One upload session by one photographer at one event. Photos keep their **sequence** within the batch (camera file order). |
+| **Photo** | Belongs to one event, one photographer and one batch. Has a **stable R2 object key** (`events/<event>/photographers/<photographer>/photos/<photo>.jpg`, set once from ids and never changed), the photographer's price in pence (GBP), the capture time from EXIF where available, an upload status (`pending` → `ready` or `rejected`) and a publish time. |
+| **Photo tag (confirmed)** | Many-to-many `photo_tags (photo_id, entry_id)`. One photo can show several entries. A tag can only point at an entry from the photo's own event. **Only confirmed tags on published photos are searchable publicly.** |
+| **Tag suggestion** | Separate table `tag_suggestions`, for future number recognition and same-car burst suggestions. It has a source, confidence, model version and related photo. It never appears publicly. A photographer accepts it, which creates a confirmed tag, or rejects it. |
 
-Search rule: the competitor's input is trimmed and upper-cased, then matched
-**exactly** against `entries.number` within the event. There are no prefix,
-partial or numeric matches.
+Search rule: spaces are removed from the competitor's input and letters are
+upper-cased, then it is matched **exactly** against `entries.number` within the
+event. There are no prefix, partial or numeric matches. The rule is implemented
+in both `normaliseEntryNumber` (TypeScript) and `public.normalise_entry_number`
+(SQL).
 
-Sketch of the planned Supabase (Postgres) tables:
+The schema lives in `supabase/migrations/`. Membership (`event_photographers.status`)
+is `pending`, `approved` or `suspended`. Only `approved` photographers can
+upload, tag or publish.
 
-```sql
-events(id, slug unique, name, sport, entry_label, location_label, organiser, venue, start_date, end_date)
-photographers(id, user_id → auth.users, slug unique, display_name, credit, website)
-event_photographers(event_id, photographer_id, primary key (event_id, photographer_id))
-entries(id, event_id, number text, competitors text[], vehicle, class_name, unique (event_id, number))
-photos(id, event_id, photographer_id, location, taken_at, price_pence int,
-       preview_key text,   -- R2 object key, public/watermarked
-       original_key text,  -- R2 object key, PRIVATE, released only after verified payment
-       created_at)
-photo_tags(photo_id, entry_id, primary key (photo_id, entry_id))
-```
-
-The code types live in `src/lib/types.ts` and mirror these tables.
+The pilot stores **web-sized JPEGs only**: up to 4 MB, 600–3000 px on the long
+edge, and 100 per upload. These are what the gallery shows. **Private
+high-resolution originals** for paid downloads are a separate object per photo,
+added in the sales milestone.
 
 ## Tech choices
 
 - **Next.js + TypeScript** (App Router), deployed on **Vercel**.
 - **Supabase** for the database and login (from the pilot onwards).
-- **Cloudflare R2** for **every real photo upload**. Originals go in a private
-  bucket and previews are served publicly. Use signed URLs for downloads.
+- **Cloudflare R2** for **every real photo upload**. Browsers upload straight to
+  R2 with short-lived signed URLs. The bucket is private, and the gallery shows
+  images through signed view URLs. Secrets stay server-side.
 
 ## Milestones
 
@@ -80,12 +78,16 @@ The code types live in `src/lib/types.ts` and mirror these tables.
   with photos from both photographers.
 - Data lives in `src/lib/demo-data.ts`, and the query logic in `src/lib/gallery.ts`.
 
-### 1. Week-one pilot
-- Photographer **logins** (Supabase Auth).
-- Photographer **uploads** to **Cloudflare R2**. A photographer creates or joins
-  an event, uploads photos, sets prices, and tags entries by hand.
-- Move the demo data model into Supabase tables (as above). The gallery reads
-  from Supabase.
+### 1. Week-one pilot – _built, needs live setup (see BUILD_STATUS.md)_
+- Photographer **logins** (Supabase Auth, email and password). Accounts are
+  created by the organiser, and public sign-up is off.
+- **Event setup is manual**: the organiser runs `supabase/pilot-setup.sql` in
+  the Supabase SQL Editor (event, entry list, photographers, approval).
+- Photographer **uploads** go directly to **Cloudflare R2** with retries, then
+  are verified on the server. Photographers **bulk-tag** car numbers, **publish**
+  previews and set prices.
+- The public gallery reads from Supabase. The demo event still works without
+  setup.
 - **Measure:**
   - Can competitors **find their car**? Track the search → results rate,
     "no results" searches, and time to the first photo view.
@@ -93,12 +95,20 @@ The code types live in `src/lib/types.ts` and mirror these tables.
     or shared, visits per event and their referrers, and share-button taps.
 - No checkout yet. "Buy" stays disabled.
 
-### 2. After the pilot (scheduled, not started)
-- **Checkout**: one photographer per checkout. Release the original only after
-  verified payment. Take the platform commission (rate still to be decided).
+### 2. After the pilot (scheduled, not started). Next features, in order:
+1. **Paid downloads.** One photographer per checkout. Release the private
+   high-resolution original only after verified payment (webhook). Take the
+   platform commission (rate still to be decided).
+2. **Assisted-tagging test** on about **200 hand-labelled rally photos**:
+   - Measure number-recognition and same-car burst suggestions against the hand
+     labels (precision and recall, with 32 / 032 / 320-style confusions counted
+     separately).
+   - Write suggestions into `tag_suggestions`, never straight into confirmed tags.
+   - Capture time, batch and sequence are already stored for burst grouping.
+
+Later:
 - **Payouts** to photographers.
 - **Packs** (several photos at one price).
-- **Automated tagging** (car-number recognition) to help photographers tag.
 
 ## Open questions
 - Commission rate.

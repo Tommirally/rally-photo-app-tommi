@@ -4,53 +4,112 @@ _Checkpoint: 11 November 2026. Read this together with [PRODUCT_BRIEF.md](./PROD
 
 ## Where we are
 
-Milestone 0 is complete and merged into `main`
-([PR #1](https://github.com/Tommirally/rally-photo-app-tommi/pull/1)). This is
-the shareable sample gallery that uses fictional demo data.
+- **Milestone 0** (sample gallery) is merged.
+- **Milestone 1** (week-one pilot) is **built and tested locally**. It needs live
+  Supabase, R2 and Vercel settings before anyone can use it. See README →
+  "Connect Supabase and Cloudflare R2".
 
-## What works (tested)
+## What was tested in the cloud session (all passing)
 
-| Check | How it was tested | Result |
+| Area | How | Result |
 |---|---|---|
-| Production build (`npm run build`) | Cloud session | ✅ Pass |
-| Typecheck (`npm run typecheck`) | Cloud session | ✅ Pass |
-| Search logic, 10 tests (`npm test`) | Vitest | ✅ Pass |
-| Searching **32** shows only car 32: 4 photos from **both** photographers | Playwright, iPhone 13 size, production server | ✅ Pass |
-| `?car=032` and `?car=320` each show only their own car | Playwright | ✅ Pass |
-| No partial matches: 3, 03, 20 and 999 show "no results" | Playwright | ✅ Pass |
-| The search is saved in the page address (`?car=32`), and a shared link opens straight to the results | Playwright | ✅ Pass |
-| Tapping a car-number chip filters the gallery | Playwright | ✅ Pass |
-| A photo tagged with two cars (7 and 15) shows up under each car | Unit test and Playwright | ✅ Pass |
-| Search works with JavaScript turned off | Playwright | ✅ Pass |
-| No sideways scrolling on a phone | Playwright | ✅ Pass |
-| Demo-data banner, photographer credits and "demo price" labels are visible | Playwright and screenshot review | ✅ Pass |
-| An unknown event address shows a 404 page | curl | ✅ Pass |
+| Typecheck and production build | `npm run typecheck`, `npm run build` | ✅ |
+| Secret keys stay server-side | Built with dummy secrets and searched the browser bundle: no Supabase secret or R2 keys; only the public key is present | ✅ |
+| Search, file checks, JPEG reader, retry logic | `npm test`: 25 unit tests | ✅ |
+| Database permissions and search | `npm run test:integration`: 44 tests on real Postgres 16 with Supabase's roles. Cast: photographers A and B, a pending photographer, a suspended photographer, a signed-in non-photographer, an anonymous visitor and the service role | ✅ |
+| R2 uploads | Same command: 12 tests against an S3-compatible emulator over real HTTP (signed PUT, verification, limits, retries) | ✅ |
+| Phone search | `npm run test:e2e`: 8 tests × 2 phones (iPhone 13 and Pixel 7 sizes) on the demo event | ✅ |
+| Manual setup SQL | `supabase/pilot-setup.sql` ran twice on a fresh database without errors | ✅ |
 
-## Still needs testing
+Highlights of what the tests prove:
+- **32 / 032 / 320**:
+  - Searching 32 returns only car 32's published photos, from both photographers.
+  - 032 and 320 return only their own car.
+  - 3, 03, 20, 0032 and 3200 return nothing.
+  - Car numbers are scoped to their event.
+- **Only confirmed tags on published photos are public**:
+  - An unpublished photo tagged 32 stays hidden, even from a signed-in photographer using public search.
+  - Pending suggestions are hidden.
+  - An accepted suggestion becomes searchable; a rejected one does not.
+- **Photographer isolation**:
+  - B cannot see A's private photos or batches.
+  - B cannot tag, untag, publish, unpublish, re-price or edit A's photos.
+  - Pending and suspended photographers cannot upload, tag or publish.
+  - Nobody but the service role can mark an upload verified.
+  - Nobody can change a photo's R2 key.
+- **Anonymous visitors**:
+  - Cannot see draft events, private photos, upload batches, suggestions or photographers' login IDs.
+  - Cannot write anything.
+- **Upload limits**:
+  - The browser, the database and the server all enforce them: ≤ 4 MB, JPEG only, 600–3000 px long edge, ≤ 100 files per upload.
+  - The server rejects and deletes oversized, mismatched-size, non-JPEG, too-wide and too-small files.
+- **Retries**:
+  - Uploads survive dropped connections, a 500 error and an expired link (it fetches a fresh one).
+  - The upload gives up after 4 tries and shows a **Retry failed** button.
+- **Capture time**:
+  - The EXIF capture time is stored, using the camera's offset when present.
+  - Without an offset, the event's time zone is used (GMT or BST handled correctly).
+  - Batch and sequence numbers are stored.
 
-- [ ] **Vercel deployment:** not confirmed yet. The app has not been checked on a live Vercel address.
-- [ ] **A real phone:** open the live link on an iPhone and on an Android phone.
-- [ ] **"Share this link" button:** the phone's share menu opens, and the copy-to-clipboard fallback works on a desktop browser. Neither has been checked by hand.
-- [ ] **Dark mode:** the colours are defined but have not been reviewed on a device.
-- [ ] **Link previews:** check how the link looks when pasted into WhatsApp or Facebook. There is no preview image yet, only a title and description.
-- [ ] **Real people:** has not been tried with real competitors or an organiser yet. That is the goal of the pilot.
+### Not tested here (and why)
+
+The cloud session could not run the real Supabase API (PostgREST and Supabase
+Auth). Docker images couldn't be pulled, and downloading the binaries was
+blocked. So these were **not exercised end to end**:
+- The app talking to a real Supabase project: sign-in, the API routes, the
+  photographer pages and the bulk-action buttons.
+- The browser upload screen itself. Its retry logic is tested, but not the
+  screen in a real browser.
+- Real Cloudflare R2. The emulator does not check signatures or CORS.
+
+These need the live checklist below.
+
+## Live checklist (after setup, on the Vercel address)
+
+Tick each box after doing it on a real phone or computer.
+
+**Setup**
+- [ ] The migration ran in Supabase SQL Editor without errors.
+- [ ] Public sign-ups are off. Two photographer logins exist (A and B).
+- [ ] `pilot-setup.sql` has been run, approving A and B for one test event. The event is still a draft.
+- [ ] All Vercel environment variables are set and the app has been redeployed.
+
+**Photographer A (computer)**
+- [ ] Signing in at `/login` works. "My events" shows the test event.
+- [ ] Upload 5 or more web-sized JPEGs. Each one shows "Done", and thumbnails appear.
+- [ ] Upload a 6 MB JPEG: it is refused before uploading with "Too large".
+- [ ] Upload a full-size camera JPEG under 4 MB but over 3000 px: it is "Rejected" with the pixel size.
+- [ ] Upload a PNG: it is refused as "Not a JPEG".
+- [ ] **Retry:** start an upload of about 20 photos, switch Wi-Fi off for 5 seconds, then back on. They finish, or **Retry failed** completes them.
+- [ ] Photos taken on a camera show a capture time on their card.
+- [ ] Select 3 photos, type `32`, then **Add tags**. Tag one photo `032` and one `320`. Then type `999` → "Not on the entry list: 999".
+- [ ] **Publish** two of the car-32 photos. Leave one 32 photo private.
+- [ ] Set a price of `7.50` on the selection: the cards show £7.50.
+
+**Photographer B (another browser or private window)**
+- [ ] B uploads 2 photos, tags `32` and publishes them.
+- [ ] B's workspace shows none of A's photos.
+
+**Make it public**, then as an anonymous visitor on a phone:
+- [ ] Run `update public.events set is_public = true where slug = '…';`.
+- [ ] Open `/events/<slug>`, search `32`. Only A's two published 32 photos and B's two appear. A's private one does not. Credits show both photographers.
+- [ ] Search `032`, then `320`: each shows only its own car. Search `3`: "No car 3 at this event".
+- [ ] **Share this link** opens the phone's share sheet with `?car=32` in the address. Opening that link on another phone shows the same results.
+- [ ] Before making the event public, `/events/<slug>` showed "not found".
+
+**Storage**
+- [ ] In Cloudflare R2 → `rally-photos`, objects are under `events/<event-id>/photographers/<photographer-id>/photos/<photo-id>.jpg`.
+- [ ] Bucket **Public access** is disabled, and photos still show in the gallery through signed links.
 
 ## Exact next step
 
-**Deploy `main` to Vercel and open it on your phone.**
+**Do the setup in README → "Connect Supabase and Cloudflare R2", then work
+through the live checklist above.** If something fails, note which box and the
+message shown, and bring it back to a session.
 
-1. Go to https://vercel.com and click **Sign Up → Continue with GitHub**.
-2. Click **Add New… → Project**. Next to **rally-photo-app-tommi**, click **Import**.
-3. Leave every setting as it is and click **Deploy**.
-4. Copy the address under **Domains**. On your phone, open
-   `https://<that-address>/events/demo-forest-stages-2026?car=32`
-5. Tick the first two boxes under "Still needs testing" above.
+## After the pilot
 
-## After that: week-one pilot (see PRODUCT_BRIEF.md)
-
-1. Create a Supabase project and move the demo data model into tables.
-2. Add photographer logins with Supabase Auth.
-3. Create a Cloudflare R2 bucket and add photographer uploads: private
-   originals, with public previews.
-4. Add measurement for two questions: did competitors find their car, and did
-   the organiser share the link?
+1. **Paid downloads.** One photographer per checkout. Release the private
+   original only after verified payment. The commission rate is still undecided.
+2. **Assisted-tagging test** on about 200 hand-labelled rally photos. Suggestions
+   go to `tag_suggestions` only.
