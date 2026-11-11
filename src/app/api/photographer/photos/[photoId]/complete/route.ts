@@ -38,5 +38,17 @@ export async function POST(_request: Request, { params }: { params: Promise<{ ph
   });
   if (error) return jsonError(500, "Could not record the upload. Please retry.");
 
+  // Photos go live as soon as they pass the checks, tagged or not
+  // (PRODUCT_BRIEF 1b). Photographers can still unpublish.
+  if (accept) {
+    const { error: publishError } = await admin
+      .from("photos")
+      .update({ published_at: new Date().toISOString() })
+      .eq("id", photo.id)
+      .eq("upload_status", "ready")
+      .is("published_at", null);
+    if (publishError) console.error("Auto-publish failed", photo.id, publishError.message);
+  }
+
   return NextResponse.json(accept ? { status: "ready" } : { status: "rejected", reason: result.reason }, noStore);
 }

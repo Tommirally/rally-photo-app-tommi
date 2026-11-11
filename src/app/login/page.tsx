@@ -7,8 +7,15 @@ import { LoginForm } from "./LoginForm";
 export const metadata = { title: "Photographer sign-in" };
 export const dynamic = "force-dynamic";
 
-export default async function LoginPage() {
-  if (isSupabaseConfigured() && (await getPhotographerSession())) redirect("/photographer");
+/** Only allow returning to our own pages. */
+function safeNext(v: string | string[] | undefined): string {
+  const s = Array.isArray(v) ? v[0] : v;
+  return s && s.startsWith("/") && !s.startsWith("//") && !s.startsWith("/\\") ? s : "/photographer";
+}
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[] }> }) {
+  const next = safeNext((await searchParams).next);
+  if (isSupabaseConfigured() && (await getPhotographerSession())) redirect(next);
   return (
     <main className="page narrow">
       <Link href="/" className="back-link">← Events</Link>
@@ -16,7 +23,7 @@ export default async function LoginPage() {
       {isSupabaseConfigured() ? (
         <>
           <p className="muted">For photographers invited to the pilot. Your account is set up by the organiser.</p>
-          <LoginForm />
+          <LoginForm next={next} />
         </>
       ) : (
         <p className="notice">Sign-in is not configured on this server yet (Supabase settings are missing).</p>

@@ -69,3 +69,11 @@ test("photographer area is closed when sign-in is not configured", async ({ page
   const res = await request.post("/api/photographer/events/00000000-0000-4000-8000-000000000000/batches", { data: { files: [] } });
   expect(res.status()).toBe(503);
 });
+
+test("admin area is closed when sign-in is not configured", async ({ page }) => {
+  for (const path of ["/admin", "/admin/events/new", "/admin/events/00000000-0000-4000-8000-000000000000"]) {
+    await page.goto(path);
+    await expect(page).toHaveURL(/\/admin\/not-allowed$/);
+    await expect(page.getByText("isn’t configured")).toBeVisible();
+  }
+});

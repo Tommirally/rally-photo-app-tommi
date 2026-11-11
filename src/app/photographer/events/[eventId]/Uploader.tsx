@@ -127,8 +127,8 @@ export function Uploader({ eventId, onFinished }: { eventId: string; onFinished:
       <h2 id="upload-heading">Upload photos</h2>
       <p className="muted small">
         Web-sized JPEGs only: up to {formatBytes(UPLOAD_LIMITS.maxFileBytes)} each, {UPLOAD_LIMITS.minLongEdgePx}–
-        {UPLOAD_LIMITS.maxLongEdgePx}px on the long edge, {UPLOAD_LIMITS.maxFilesPerBatch} per upload. New photos stay
-        private until you publish them.
+        {UPLOAD_LIMITS.maxLongEdgePx}px on the long edge, {UPLOAD_LIMITS.maxFilesPerBatch} per upload. Photos go live in
+        the gallery as soon as they finish uploading – tag them whenever you can.
       </p>
       <div className="row">
         <label className={`primary-button file-button${running ? " disabled" : ""}`}>

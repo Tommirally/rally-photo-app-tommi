@@ -15,7 +15,7 @@ Supabase and Cloudflare R2.
 photographer workflow.
 
 ### Plan progress
-- [ ] 1. Admin: events and CSV entry lists (plus auto-publish on upload)
+- [x] 1. Admin: events and CSV entry lists (plus auto-publish on upload): built and tested locally, needs the live check below
 - [ ] 2. Admin: photographer invites and approvals
 - [ ] 3. Upload: drag and drop, resize in the browser, overall progress, default price
 - [ ] 4. Tagging mode: one at a time, same as last, burst select
@@ -45,6 +45,14 @@ photographer workflow.
 - **Phone browser tests:** 16.
 - **Commands:** `npm test`, `npm run test:integration`, `npm run build && npm run test:e2e`.
   See the README.
+
+## Live check for step 1 (after merging and adding `ADMIN_EMAILS` in Vercel)
+- [ ] `/admin` asks you to sign in, then lists the events. Any other account sees "isn't an admin account".
+- [ ] **+ New event** creates a draft with a web address made from the name.
+- [ ] Upload the organiser's CSV: the preview shows the cars. Duplicates or blank numbers block saving; 32/032 shows a warning.
+- [ ] **Save N cars**: the entry table shows them, and tagging those numbers works for photographers.
+- [ ] **Make gallery public** and **Copy link**: the link opens the public gallery.
+- [ ] A newly uploaded photo appears in the public gallery straight away, before tagging.
 
 ## Exact next step
 Continue the plan above from the first unticked item.
