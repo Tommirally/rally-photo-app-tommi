@@ -1,3 +1,4 @@
+/** Demo-data gallery (fictional sample event). Real events come from Supabase. */
 import * as demo from "./demo-data";
 import type { Entry, Event, Photo, Photographer } from "./types";
 
@@ -21,12 +22,13 @@ export interface GalleryResult {
 
 /**
  * Clean up what someone typed into the car-number box.
- * Only trims spaces and upper-cases letters. Leading zeros are KEPT,
+ * Removes spaces and upper-cases letters. Leading zeros are KEPT,
  * because "032" and "32" are different entries.
+ * Must match public.normalise_entry_number() in the database.
  */
 export function normaliseEntryNumber(raw: string | null | undefined): string | null {
   if (raw == null) return null;
-  const cleaned = raw.trim().replace(/\s+/g, "").toUpperCase().slice(0, 12);
+  const cleaned = raw.replace(/\s+/g, "").toUpperCase();
   return cleaned === "" ? null : cleaned;
 }
 
